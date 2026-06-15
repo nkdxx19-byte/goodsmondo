@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ポケカテキスト Mondo風クイズ</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    background-color: #f4f6f9;
+    padding: 20px;
+    color: #333;
+  }
+  .mode-buttons {
+    margin-bottom: 15px;
+  }
+  .mode-buttons button {
+    padding: 8px 16px;
+    font-size: 14px;
+    margin: 0 5px;
+    background-color: #34495e;
+    border-radius: 4px;
+  }
+  .mode-buttons button:hover {
+    background-color: #2c3e50;
+  }
+  .panel-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    margin: 20px auto;
+    max-width: 600px;
+    line-height: 1.5;
+  }
+  .panel {
+    width: 32px;
+    height: 32px;
+    background-color: #2c3e50;
+    color: #ecf0f1; /* 閉まっている時は番号を白字で表示 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+  .panel:hover {
+    background-color: #34495e;
+  }
+  .panel.open {
+    background-color: #fff;
+    color: #2c3e50;
+    border: 1px solid #bdc3c7;
+    cursor: default;
+    width: 30px;
+    height: 30px;
+    font-size: 18px; /* 文字が開いた時は少し大きく */
+  }
+  .input-area {
+    margin-top: 20px;
+  }
+  input[type="text"] {
+    padding: 12px;
+    font-size: 16px;
+    width: 80%;
+    max-width: 300px;
+    border: 2px solid #bdc3c7;
+    border-radius: 6px;
+  }
+  button {
+    padding: 12px 24px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    margin-top: 10px;
+    font-weight: bold;
+    transition: background-color 0.2s;
+  }
+  button:hover {
+    background-color: #c0392b;
+  }
+  #next-btn {
+    background-color: #27ae60;
+    display: none; /* 初期状態では非表示 */
+  }
+  #next-btn:hover {
+    background-color: #2ecc71;
+  }
+  #message {
+    margin-top: 20px;
+    font-weight: bold;
+    font-size: 20px;
+    white-space: pre-wrap;
+  }
+  .score-board {
+    font-size: 18px;
+    font-weight: bold;
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    display: inline-block;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-bottom: 10px;
+  }
+  h2 {
+    color: #2980b9;
+    margin-top: 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>ポケカテキスト Mondo風クイズ</h1>
+
+<div class="mode-buttons">
+  <button onclick="startDailyMode()">デイリーモード</button>
+  <button onclick="startEndlessMode()">エンドレスモード</button>
+</div>
+
+<h2 id="mode-title">デイリーモード</h2>
+
+<div class="score-board">
+  残り解答回数: <span id="tries" style="color: #e74c3c;">3</span>回<br>
+  現在のスコア: <span id="score" style="color: #2980b9;">0</span>点
+</div>
+
+<div id="panels" class="panel-container"></div>
+
+<div class="input-area">
+  <input type="text" id="answerInput" placeholder="カード名を入力 (例: ナンジャモ)">
+  <br>
+  <button id="submit-btn" onclick="checkAnswer()">解答する</button>
+  <button id="next-btn" onclick="startEndlessMode()">次の問題へ進む</button>
+</div>
+
+<div id="message"></div>
+
+<script src="data.js"></script>
+<script>
+const fallbackData = [
+  { question: "カードのデータが読み込めませんでした。data.jsが同じフォルダにあるか確認してください。", answer: "エラー" }
+];
+
+const cards = (typeof pokemonCardsData !== 'undefined') ? pokemonCardsData : fallbackData;
+
+let currentMode = 'daily';
+let questionText = "";
+let correctAnswer = "";
+let tries = 3;
+let score = 0;
+let gameOver = false;
+
+// 今日の日付をベースにランダムなインデックスを取得する関数
+function getDailyIndex(max) {
+  const today = new Date();
+  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  const x = Math.sin(seed) * 10000;
+  return Math.floor((x - Math.floor(x)) * max);
+}
+
+// デイリーモードを開始
+function startDailyMode() {
+  currentMode = 'daily';
+  document.getElementById('mode-title').innerText = "デイリーモード（今日の一問）";
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('submit-btn').style.display = 'inline-block';
+  
+  const dailyCard = cards[getDailyIndex(cards.length)];
+  setupGame(dailyCard);
+}
+
+// エンドレスモードを開始
+function startEndlessMode() {
+  currentMode = 'endless';
+  document.getElementById('mode-title').innerText = "エンドレスモード（連続出題）";
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('submit-btn').style.display = 'inline-block';
+  document.getElementById('submit-btn').disabled = false;
+  
+  // ランダムに1問選ぶ
+  const randomCard = cards[Math.floor(Math.random() * cards.length)];
+  setupGame(randomCard);
+}
+
+// ゲーム画面のセットアップ
+function setupGame(cardData) {
+  questionText = cardData.question;
+  correctAnswer = cardData.answer;
+  tries = 3;
+  // 記号も含めすべての文字を隠すため、文字数がそのまま最大スコアになる
+  score = questionText.length;
+  gameOver = false;
+  
+  document.getElementById('tries').innerText = tries;
+  document.getElementById('score').innerText = score;
+  document.getElementById('message').innerText = "";
+  document.getElementById('answerInput').value = "";
+  
+  const panelsContainer = document.getElementById('panels');
+  panelsContainer.innerHTML = ""; // 前の問題のパネルをクリア
+  
+  for (let i = 0; i < questionText.length; i++) {
+    const char = questionText[i];
+    const div = document.createElement('div');
+    
+    div.className = 'panel';
+    div.innerText = i + 1; // パネルに番号を振る
+    div.dataset.char = char; // 裏に本当の文字データを隠しておく
+    div.onclick = () => openPanel(div);
+    
+    panelsContainer.appendChild(div);
+  }
+}
+
+// パネルを開ける処理
+function openPanel(element) {
+  if (gameOver || element.classList.contains('open')) return;
+  
+  element.classList.add('open');
+  element.innerText = element.dataset.char; // 番号から実際の文字に切り替える
+  score--; // 開けるごとにスコアが1減る
+  document.getElementById('score').innerText = score;
+}
+
+// ひらがなをカタカナに変換する関数
+function toKatakana(str) {
+  return str.replace(/[\u3041-\u3096]/g, function(match) {
+    var chr = match.charCodeAt(0) + 0x60;
+    return String.fromCharCode(chr);
+  });
+}
+
+// 答え合わせ処理
+function checkAnswer() {
+  if (gameOver) return;
+  
+  const input = document.getElementById('answerInput').value.trim();
+  if (!input) return;
+
+  const normalizedInput = toKatakana(input);
+  const normalizedAnswer = toKatakana(correctAnswer);
+
+  if (normalizedInput === normalizedAnswer) {
+    document.getElementById('message').innerText = `大正解！🎉\n獲得スコア: ${score}点\nカード名: ${correctAnswer}`;
+    document.getElementById('message').style.color = "#27ae60";
+    endGame();
+  } else {
+    tries--;
+    document.getElementById('tries').innerText = tries;
+    if (tries <= 0) {
+      document.getElementById('message').innerText = `ゲームオーバー...\n正解は「${correctAnswer}」でした！`;
+      document.getElementById('message').style.color = "#c0392b";
+      endGame();
+    } else {
+      document.getElementById('message').innerText = "不正解！もう一度よく考えてみよう！";
+      document.getElementById('message').style.color = "#e67e22";
+    }
+  }
+}
+
+// ゲーム終了時の処理
+function endGame() {
+  gameOver = true;
+  document.getElementById('submit-btn').disabled = true; // 解答ボタンを無効化
+  
+  // すべてのパネルを開けて文字を表示
+  const panels = document.querySelectorAll('.panel');
+  panels.forEach(p => {
+    p.classList.add('open');
+    p.innerText = p.dataset.char;
+  });
+
+  // エンドレスモードなら「次の問題へ」ボタンを表示
+  if (currentMode === 'endless') {
+    document.getElementById('next-btn').style.display = 'inline-block';
+    document.getElementById('submit-btn').style.display = 'none';
+  }
+}
+
+// 起動時はデイリーモードからスタート
+window.onload = startDailyMode;
+</script>
+</body>
+</html>
