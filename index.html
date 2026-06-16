@@ -90,20 +90,20 @@
     margin-bottom: 15px;
   }
 
+  /* 【改善】Gridレイアウトを採用し、左右の余白を均等にする */
   .panel-outer-wrapper {
-    display: flex;
-    justify-content: center;
     margin: 20px auto;
     max-width: 600px;
+    width: 100%;
   }
   .panel-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
+    display: grid;
+    /* 32pxのパネルを画面幅の限界まで並べ、全体を中央に寄せる */
+    grid-template-columns: repeat(auto-fit, 32px);
+    justify-content: center;
     gap: 4px;
-    width: 100%;
-    line-height: 1.5;
   }
+  
   .panel {
     width: 32px;
     height: 32px;
@@ -577,6 +577,14 @@ function loadNextQuestion() {
 function setupGame(cardData) {
   questionText = cardData.question;
   correctAnswer = cardData.answer;
+
+  if (currentMode === 'endless') {
+      const selectedType = document.getElementById('typeSelect').value;
+      if (selectedType === 'トレーナーズ（すべて）') {
+          // すべてが選ばれたときは出題の種類を非表示にする
+          document.getElementById('hint-area').innerText = `条件：${document.getElementById('formatSelect').value} / すべて`;
+      }
+  }
 
   tries = 3;
   totalPanels = questionText.length;
