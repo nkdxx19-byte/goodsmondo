@@ -90,7 +90,6 @@
     margin-bottom: 15px;
   }
 
-  /* 【改善】Gridレイアウトを採用し、左右の余白を均等にする */
   .panel-outer-wrapper {
     margin: 20px auto;
     max-width: 600px;
@@ -98,7 +97,6 @@
   }
   .panel-container {
     display: grid;
-    /* 32pxのパネルを画面幅の限界まで並べ、全体を中央に寄せる */
     grid-template-columns: repeat(auto-fit, 32px);
     justify-content: center;
     gap: 4px;
@@ -270,8 +268,20 @@
   .footer a { color: #2980b9; text-decoration: none; font-weight: bold; }
   .footer a:hover { text-decoration: underline; }
 
+  /* 【改善】スマホ画面時のレイアウト調整 */
   @media (max-width: 480px) {
-    h1 { font-size: 18px; }
+    h1 { 
+      font-size: 16px; /* タイトル文字を少し小さく */
+      white-space: nowrap; /* ★1行に固定して改行させない */
+    }
+    .title-container {
+      gap: 5px; /* タイトルと「？」ボタンの隙間を詰める */
+    }
+    .circle-btn {
+      width: 28px; /* 「？」ボタンを少し小さく */
+      height: 28px;
+      font-size: 16px;
+    }
     .tab { padding: 10px 12px; font-size: 14px; margin: 0 2px; }
     .score-board { font-size: 16px; padding: 10px; }
     input[type="text"] { width: 90%; }
@@ -581,7 +591,6 @@ function setupGame(cardData) {
   if (currentMode === 'endless') {
       const selectedType = document.getElementById('typeSelect').value;
       if (selectedType === 'トレーナーズ（すべて）') {
-          // すべてが選ばれたときは出題の種類を非表示にする
           document.getElementById('hint-area').innerText = `条件：${document.getElementById('formatSelect').value} / すべて`;
       }
   }
