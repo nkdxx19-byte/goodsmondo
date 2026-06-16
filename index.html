@@ -12,19 +12,80 @@
     padding: 20px;
     color: #333;
   }
-  .mode-buttons {
+  
+  /* タブのスタイル */
+  .tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #bdc3c7;
+    max-width: 600px;
+    margin: 0 auto 20px auto;
+  }
+  .tab {
+    padding: 12px 24px;
+    cursor: pointer;
+    background-color: #dcdde1;
+    color: #7f8c8d;
+    border-radius: 8px 8px 0 0;
+    margin: 0 5px;
+    font-weight: bold;
+    transition: all 0.2s;
+    border: 1px solid #bdc3c7;
+    border-bottom: none;
+  }
+  .tab.active {
+    background-color: #fff;
+    color: #2980b9;
+    border-bottom: 2px solid #fff;
+    margin-bottom: -2px;
+  }
+
+  /* コントロールエリアのスタイル */
+  .controls-container {
+    background-color: #ecf0f1;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 0 auto 20px auto;
+    max-width: 600px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+  .select-group {
+    margin: 10px 0;
+  }
+  select {
+    padding: 8px;
+    font-size: 16px;
+    border-radius: 4px;
+    border: 1px solid #bdc3c7;
+    margin: 0 10px;
+  }
+  .start-btn {
+    background-color: #8e44ad;
+    color: white;
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 10px;
+  }
+  .start-btn:hover { background-color: #9b59b6; }
+  
+  /* ヒントエリアのスタイル */
+  .hint-badge {
+    display: inline-block;
+    background-color: #34495e;
+    color: white;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: bold;
     margin-bottom: 15px;
   }
-  .mode-buttons button {
-    padding: 8px 16px;
-    font-size: 14px;
-    margin: 0 5px;
-    background-color: #34495e;
-    border-radius: 4px;
-  }
-  .mode-buttons button:hover {
-    background-color: #2c3e50;
-  }
+
+  /* ゲームエリアのスタイル */
   .panel-container {
     display: flex;
     flex-wrap: wrap;
@@ -38,7 +99,7 @@
     width: 32px;
     height: 32px;
     background-color: #2c3e50;
-    color: #ecf0f1; /* 閉まっている時は番号を白字で表示 */
+    color: #ecf0f1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -49,9 +110,7 @@
     border-radius: 4px;
     transition: background-color 0.2s;
   }
-  .panel:hover {
-    background-color: #34495e;
-  }
+  .panel:hover { background-color: #34495e; }
   .panel.open {
     background-color: #fff;
     color: #2c3e50;
@@ -59,11 +118,10 @@
     cursor: default;
     width: 30px;
     height: 30px;
-    font-size: 18px; /* 文字が開いた時は少し大きく */
+    font-size: 18px;
   }
-  .input-area {
-    margin-top: 20px;
-  }
+  
+  .input-area { margin-top: 20px; }
   input[type="text"] {
     padding: 12px;
     font-size: 16px;
@@ -72,7 +130,7 @@
     border: 2px solid #bdc3c7;
     border-radius: 6px;
   }
-  button {
+  button, .share-button {
     padding: 12px 24px;
     font-size: 16px;
     cursor: pointer;
@@ -82,18 +140,28 @@
     border-radius: 6px;
     margin-top: 10px;
     font-weight: bold;
+    display: inline-block;
+    text-decoration: none;
     transition: background-color 0.2s;
   }
-  button:hover {
-    background-color: #c0392b;
-  }
+  button:hover { background-color: #c0392b; }
+  
   #next-btn {
     background-color: #27ae60;
-    display: none; /* 初期状態では非表示 */
+    display: none;
   }
-  #next-btn:hover {
-    background-color: #2ecc71;
+  #next-btn:hover { background-color: #2ecc71; }
+  
+  /* X（Twitter）共有ボタン独自のスタイル */
+  #share-btn {
+    background-color: #000000;
+    margin-left: 5px;
+    display: none; /* 初期状態は非表示 */
   }
+  #share-btn:hover {
+    background-color: #2f3640;
+  }
+  
   #message {
     margin-top: 20px;
     font-weight: bold;
@@ -110,55 +178,99 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     margin-bottom: 10px;
   }
-  h2 {
-    color: #2980b9;
-    margin-top: 0;
-  }
+  h2 { color: #2980b9; margin-top: 0; }
+  #game-area { display: none; }
 </style>
 </head>
 <body>
 
 <h1>ポケカテキスト Mondo風クイズ</h1>
 
-<div class="mode-buttons">
-  <button onclick="startDailyMode()">デイリーモード</button>
-  <button onclick="startEndlessMode()">エンドレスモード</button>
+<div class="tabs">
+  <div id="tab-daily" class="tab active" onclick="switchTab('daily')">本日の一問</div>
+  <div id="tab-endless" class="tab" onclick="switchTab('endless')">エンドレスモード</div>
 </div>
 
-<h2 id="mode-title">デイリーモード</h2>
-
-<div class="score-board">
-  残り解答回数: <span id="tries" style="color: #e74c3c;">3</span>回<br>
-  現在のスコア: <span id="score" style="color: #2980b9;">0</span>点
+<div id="endless-controls" class="controls-container" style="display: none;">
+  <h3>エンドレス出題フィルター設定</h3>
+  <div class="select-group">
+    <label>レギュレーション:
+      <select id="formatSelect">
+        <option value="スタンダード">スタンダード</option>
+        <option value="エクストラ">エクストラ</option>
+      </select>
+    </label>
+  </div>
+  <div class="select-group">
+    <label>カードの種類:
+      <select id="typeSelect">
+        <option value="グッズ">グッズ</option>
+        <option value="サポート">サポート</option>
+        <option value="スタジアム">スタジアム</option>
+        <option value="ポケモンのどうぐ">ポケモンのどうぐ</option>
+      </select>
+    </label>
+  </div>
+  <button class="start-btn" onclick="startFilteredMode()">この条件でスタート！</button>
 </div>
 
-<div id="panels" class="panel-container"></div>
-
-<div class="input-area">
-  <input type="text" id="answerInput" placeholder="カード名を入力 (例: ナンジャモ)">
+<div id="game-area">
+  <h2 id="mode-title">本日の一問</h2>
+  
+  <div id="hint-area" class="hint-badge"></div>
   <br>
-  <button id="submit-btn" onclick="checkAnswer()">解答する</button>
-  <button id="next-btn" onclick="startEndlessMode()">次の問題へ進む</button>
-</div>
 
-<div id="message"></div>
+  <div class="score-board">
+    残り解答回数: <span id="tries" style="color: #e74c3c;">3</span>回<br>
+    現在のスコア: <span id="score" style="color: #2980b9;">0</span>点
+  </div>
+
+  <div id="panels" class="panel-container"></div>
+
+  <div class="input-area">
+    <input type="text" id="answerInput" placeholder="カード名を入力 (例: ナンジャモ)">
+    <br>
+    <button id="submit-btn" onclick="checkAnswer()">解答する</button>
+    <button id="next-btn" onclick="loadNextQuestion()">次の問題へ進む</button>
+    <a id="share-btn" class="share-button" target="_blank">Xに結果を共有</a>
+  </div>
+
+  <div id="message"></div>
+</div>
 
 <script src="data.js"></script>
 <script>
 const fallbackData = [
-  { question: "カードのデータが読み込めませんでした。data.jsが同じフォルダにあるか確認してください。", answer: "エラー" }
+  { question: "データがありません。data.jsを確認してください。", answer: "エラー", type: "グッズ", format: ["スタンダード", "エクストラ"] }
 ];
-
-const cards = (typeof pokemonCardsData !== 'undefined') ? pokemonCardsData : fallbackData;
+const allCards = (typeof pokemonCardsData !== 'undefined') ? pokemonCardsData : fallbackData;
 
 let currentMode = 'daily';
+let currentPool = []; 
 let questionText = "";
 let correctAnswer = "";
 let tries = 3;
 let score = 0;
 let gameOver = false;
 
-// 今日の日付をベースにランダムなインデックスを取得する関数
+function switchTab(mode) {
+  currentMode = mode;
+  document.getElementById('tab-daily').classList.remove('active');
+  document.getElementById('tab-endless').classList.remove('active');
+  document.getElementById('share-btn').style.display = 'none'; // シェアボタンを隠す
+  
+  if (mode === 'daily') {
+    document.getElementById('tab-daily').classList.add('active');
+    document.getElementById('endless-controls').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    startDailyMode();
+  } else {
+    document.getElementById('tab-endless').classList.add('active');
+    document.getElementById('endless-controls').style.display = 'block';
+    document.getElementById('game-area').style.display = 'none'; 
+  }
+}
+
 function getDailyIndex(max) {
   const today = new Date();
   const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
@@ -166,36 +278,60 @@ function getDailyIndex(max) {
   return Math.floor((x - Math.floor(x)) * max);
 }
 
-// デイリーモードを開始
 function startDailyMode() {
-  currentMode = 'daily';
-  document.getElementById('mode-title').innerText = "デイリーモード（今日の一問）";
-  document.getElementById('next-btn').style.display = 'none';
-  document.getElementById('submit-btn').style.display = 'inline-block';
-  
-  const dailyCard = cards[getDailyIndex(cards.length)];
-  setupGame(dailyCard);
-}
+  const dailyPool = allCards.filter(card => card.format.includes("スタンダード"));
 
-// エンドレスモードを開始
-function startEndlessMode() {
-  currentMode = 'endless';
-  document.getElementById('mode-title').innerText = "エンドレスモード（連続出題）";
+  if (dailyPool.length === 0) {
+    alert("「スタンダード」のカードデータが登録されていません！data.jsを確認してください。");
+    return;
+  }
+
+  const dailyCard = dailyPool[getDailyIndex(dailyPool.length)];
+  document.getElementById('mode-title').innerText = "本日の一問（スタンダード固定）";
+  document.getElementById('hint-area').innerText = `カードの種類：${dailyCard.type}`;
+  
   document.getElementById('next-btn').style.display = 'none';
   document.getElementById('submit-btn').style.display = 'inline-block';
   document.getElementById('submit-btn').disabled = false;
+  document.getElementById('share-btn').style.display = 'none';
   
-  // ランダムに1問選ぶ
-  const randomCard = cards[Math.floor(Math.random() * cards.length)];
+  setupGame(dailyCard);
+}
+
+function startFilteredMode() {
+  const selectedFormat = document.getElementById('formatSelect').value;
+  const selectedType = document.getElementById('typeSelect').value;
+
+  currentPool = allCards.filter(card => {
+    return card.type === selectedType && card.format.includes(selectedFormat);
+  });
+
+  if (currentPool.length === 0) {
+    alert(`「${selectedFormat}」の「${selectedType}」のデータが登録されていません！`);
+    return;
+  }
+
+  document.getElementById('mode-title').innerText = `エンドレスモード`;
+  document.getElementById('hint-area').innerText = `条件：${selectedFormat} / ${selectedType}`;
+  document.getElementById('game-area').style.display = 'block';
+  
+  loadNextQuestion();
+}
+
+function loadNextQuestion() {
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('submit-btn').style.display = 'inline-block';
+  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('share-btn').style.display = 'none';
+  
+  const randomCard = currentPool[Math.floor(Math.random() * currentPool.length)];
   setupGame(randomCard);
 }
 
-// ゲーム画面のセットアップ
 function setupGame(cardData) {
   questionText = cardData.question;
   correctAnswer = cardData.answer;
   tries = 3;
-  // 記号も含めすべての文字を隠すため、文字数がそのまま最大スコアになる
   score = questionText.length;
   gameOver = false;
   
@@ -205,32 +341,30 @@ function setupGame(cardData) {
   document.getElementById('answerInput').value = "";
   
   const panelsContainer = document.getElementById('panels');
-  panelsContainer.innerHTML = ""; // 前の問題のパネルをクリア
+  panelsContainer.innerHTML = ""; 
   
   for (let i = 0; i < questionText.length; i++) {
     const char = questionText[i];
     const div = document.createElement('div');
     
     div.className = 'panel';
-    div.innerText = i + 1; // パネルに番号を振る
-    div.dataset.char = char; // 裏に本当の文字データを隠しておく
+    div.innerText = i + 1;
+    div.dataset.char = char; 
     div.onclick = () => openPanel(div);
     
     panelsContainer.appendChild(div);
   }
 }
 
-// パネルを開ける処理
 function openPanel(element) {
   if (gameOver || element.classList.contains('open')) return;
   
   element.classList.add('open');
-  element.innerText = element.dataset.char; // 番号から実際の文字に切り替える
-  score--; // 開けるごとにスコアが1減る
+  element.innerText = element.dataset.char;
+  score--; 
   document.getElementById('score').innerText = score;
 }
 
-// ひらがなをカタカナに変換する関数
 function toKatakana(str) {
   return str.replace(/[\u3041-\u3096]/g, function(match) {
     var chr = match.charCodeAt(0) + 0x60;
@@ -238,7 +372,6 @@ function toKatakana(str) {
   });
 }
 
-// 答え合わせ処理
 function checkAnswer() {
   if (gameOver) return;
   
@@ -251,14 +384,14 @@ function checkAnswer() {
   if (normalizedInput === normalizedAnswer) {
     document.getElementById('message').innerText = `大正解！🎉\n獲得スコア: ${score}点\nカード名: ${correctAnswer}`;
     document.getElementById('message').style.color = "#27ae60";
-    endGame();
+    endGame(true);
   } else {
     tries--;
     document.getElementById('tries').innerText = tries;
     if (tries <= 0) {
       document.getElementById('message').innerText = `ゲームオーバー...\n正解は「${correctAnswer}」でした！`;
       document.getElementById('message').style.color = "#c0392b";
-      endGame();
+      endGame(false);
     } else {
       document.getElementById('message').innerText = "不正解！もう一度よく考えてみよう！";
       document.getElementById('message').style.color = "#e67e22";
@@ -266,27 +399,60 @@ function checkAnswer() {
   }
 }
 
-// ゲーム終了時の処理
-function endGame() {
+// 【機能改善】引数に正解したかどうかのフラグ(isWin)を追加
+function endGame(isWin) {
   gameOver = true;
-  document.getElementById('submit-btn').disabled = true; // 解答ボタンを無効化
+  document.getElementById('submit-btn').disabled = true; 
   
-  // すべてのパネルを開けて文字を表示
+  // --- X（Twitter）共有テキストの自動生成（本日の一問モードのみ） ---
+  if (currentMode === 'daily') {
+    const totalChars = questionText.length;
+    const openedChars = totalChars - score;
+    
+    // 現在の盤面の状態を 💥 と 🔲 の文字列に変換
+    const panels = document.querySelectorAll('.panel');
+    let gridResult = "";
+    panels.forEach(p => {
+      gridResult += p.classList.contains('open') ? "💥" : "🔲";
+    });
+    
+    let resultMessage = "";
+    if (isWin) {
+      const attemptCount = 4 - tries; // 何回目の解答かを算出
+      resultMessage = `${openedChars}/${totalChars}、${attemptCount}回目の解答で正解しました！`;
+    } else {
+      resultMessage = `${openedChars}/${totalChars}、正解を導き出せませんでした...`;
+    }
+    
+    // 共有用URLとして、現在のブラウザのURLを自動取得
+    const siteUrl = window.location.href;
+    
+    // 指定されたフォーマット通りにテキストを構成
+    const shareText = `${resultMessage}\n${gridResult}\n#ポケカmondo\n${siteUrl}`;
+    
+    // シェア用ボタンのhref属性にインテントリンクをセットして表示
+    const shareBtn = document.getElementById('share-btn');
+    shareBtn.href = `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+    shareBtn.style.display = 'inline-block';
+  }
+  // -------------------------------------------------------------
+
+  // すべてのパネルを強制的に開けて正解の文字を表示
   const panels = document.querySelectorAll('.panel');
   panels.forEach(p => {
     p.classList.add('open');
     p.innerText = p.dataset.char;
   });
 
-  // エンドレスモードなら「次の問題へ」ボタンを表示
   if (currentMode === 'endless') {
     document.getElementById('next-btn').style.display = 'inline-block';
     document.getElementById('submit-btn').style.display = 'none';
   }
 }
 
-// 起動時はデイリーモードからスタート
-window.onload = startDailyMode;
+window.onload = () => {
+  switchTab('daily');
+};
 </script>
 </body>
 </html>
