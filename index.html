@@ -100,6 +100,8 @@
     grid-template-columns: repeat(auto-fit, 32px);
     justify-content: center;
     gap: 4px;
+    max-width: 100%;
+    line-height: 1.5;
   }
   
   .panel {
@@ -268,20 +270,13 @@
   .footer a { color: #2980b9; text-decoration: none; font-weight: bold; }
   .footer a:hover { text-decoration: underline; }
 
-  /* 【改善】スマホ画面時のレイアウト調整 */
   @media (max-width: 480px) {
     h1 { 
-      font-size: 16px; /* タイトル文字を少し小さく */
-      white-space: nowrap; /* ★1行に固定して改行させない */
-    }
-    .title-container {
-      gap: 5px; /* タイトルと「？」ボタンの隙間を詰める */
-    }
-    .circle-btn {
-      width: 28px; /* 「？」ボタンを少し小さく */
-      height: 28px;
       font-size: 16px;
+      white-space: nowrap; 
     }
+    .title-container { gap: 5px; }
+    .circle-btn { width: 28px; height: 28px; font-size: 16px; }
     .tab { padding: 10px 12px; font-size: 14px; margin: 0 2px; }
     .score-board { font-size: 16px; padding: 10px; }
     input[type="text"] { width: 90%; }
@@ -353,7 +348,7 @@
 </div>
 
 <div class="sub-btn-group">
-  <button class="rect-btn" onclick="openModal('excluded-modal')">出現しないカード一覧</button>
+  <button class="rect-btn" onclick="openModal('excluded-modal')">解答時の留意事項</button>
 </div>
 
 <div id="help-modal" class="modal" onclick="closeModalOnOutside(event, 'help-modal')">
@@ -371,8 +366,8 @@
 
 <div id="excluded-modal" class="modal" onclick="closeModalOnOutside(event, 'excluded-modal')">
   <div class="modal-content">
-    <h3>出現しないカード</h3>
-    <p style="font-size: 13px; color: #7f8c8d; margin-bottom: 10px;">※テキストが全く同じなどの理由で、クイズの正解候補から除外されているカードです。</p>
+    <h3>解答時の留意事項</h3>
+    <p style="font-size: 13px; color: #7f8c8d; margin-bottom: 10px;">※テキストが全く同じなどの理由で、クイズの正解候補から除外されているカードなどの注意事項です。</p>
     <ul id="excluded-list-container">
     </ul>
     <button class="close-modal-btn" onclick="closeModal('excluded-modal')">閉じる</button>
@@ -389,6 +384,7 @@
 <script src="data.js"></script>
 <script>
 const excludedCardsList = [
+  "以下のカードは出現しません",
   "古びたずがいの化石",
   "古びたたての化石",
   "古びたアゴの化石",
@@ -396,11 +392,10 @@ const excludedCardsList = [
   "古びたはねの化石",
   "古びたねっこの化石",
   "古びたふたの化石",
-  "勝利のしるし",
-  "チェレン",
-  "パルデアの仲間たち",
   "コアメモリ",
-  "ワザマシン フローライト"
+  "ワザマシン フローライト",
+  "半角全角スペース、平仮名片仮名は不問です",
+  "同一テキストのカードは全て正解になります",
 ];
 
 const fallbackData = [
@@ -411,11 +406,31 @@ const allCards = (typeof pokemonCardsData !== 'undefined') ? pokemonCardsData : 
 let currentMode = 'daily';
 let currentPool = []; 
 let questionText = "";
-let correctAnswer = "";
+let correctAnswer = []; 
 let tries = 3;
 let openedPanels = 0;
 let totalPanels = 0;
 let gameOver = false;
+
+function getGroupedPool(rawPool) {
+  const grouped = {};
+  rawPool.forEach(card => {
+    if (!grouped[card.question]) {
+      grouped[card.question] = { 
+        question: card.question, 
+        answers: [], 
+        type: card.type 
+      };
+    }
+    const ansArray = Array.isArray(card.answer) ? card.answer : [card.answer];
+    ansArray.forEach(a => {
+      if (!grouped[card.question].answers.includes(a)) {
+        grouped[card.question].answers.push(a);
+      }
+    });
+  });
+  return Object.values(grouped);
+}
 
 function getTodayString() {
   const today = new Date();
@@ -430,7 +445,7 @@ function initExcludedList() {
   const container = document.getElementById('excluded-list-container');
   container.innerHTML = "";
   if (excludedCardsList.length === 0) {
-    container.innerHTML = "<li>現在、除外されているカードはありません。</li>";
+    container.innerHTML = "<li>現在、留意事項はありません。</li>";
     return;
   }
   excludedCardsList.forEach(card => {
@@ -468,12 +483,14 @@ function getDailyIndex(max) {
 }
 
 function startDailyMode() {
-  const dailyPool = allCards.filter(card => card.format.includes("スタンダード"));
+  const rawPool = allCards.filter(card => card.format.includes("スタンダード"));
 
-  if (dailyPool.length === 0) {
+  if (rawPool.length === 0) {
     alert("「スタンダード」のカードデータが登録されていません！data.jsを確認してください。");
     return;
   }
+
+  const dailyPool = getGroupedPool(rawPool);
 
   const dailyCard = dailyPool[getDailyIndex(dailyPool.length)];
   document.getElementById('mode-title').innerHTML = `本日の１問<br><span style="font-size: 0.6em; color: #7f8c8d; font-weight: normal;">（出題範囲：スタンダード）</span>`;
@@ -500,7 +517,7 @@ function startDailyMode() {
 
 function restoreDailyResult(record, cardData) {
   questionText = cardData.question;
-  correctAnswer = cardData.answer;
+  correctAnswer = cardData.answers; 
   totalPanels = record.totalPanels;
   openedPanels = record.openedPanels;
   tries = record.tries;
@@ -525,10 +542,10 @@ function restoreDailyResult(record, cardData) {
   }
 
   if (record.isWin) {
-    document.getElementById('message').innerText = `【本日クリア済み】\n残りの文字数: ${totalPanels - openedPanels} / ${totalPanels}\nカード名: ${correctAnswer}`;
+    document.getElementById('message').innerText = `【本日クリア済み】\n残りの文字数: ${totalPanels - openedPanels} / ${totalPanels}\nカード名: ${record.correctAnswer}`;
     document.getElementById('message').style.color = "#27ae60";
   } else {
-    document.getElementById('message').innerText = `【本日挑戦済み（失敗）】\n正解は「${correctAnswer}」でした！`;
+    document.getElementById('message').innerText = `【本日挑戦済み（失敗）】\n正解は「${record.correctAnswer}」でした！`;
     document.getElementById('message').style.color = "#c0392b";
   }
 
@@ -556,15 +573,17 @@ function startFilteredMode() {
   const selectedFormat = document.getElementById('formatSelect').value;
   const selectedType = document.getElementById('typeSelect').value;
 
-  currentPool = allCards.filter(card => {
+  let rawPool = allCards.filter(card => {
     const isTypeMatch = selectedType === 'トレーナーズ（すべて）' ? true : card.type === selectedType;
     return isTypeMatch && card.format.includes(selectedFormat);
   });
 
-  if (currentPool.length === 0) {
+  if (rawPool.length === 0) {
     alert(`「${selectedFormat}」の「${selectedType}」のデータが登録されていません！`);
     return;
   }
+
+  currentPool = getGroupedPool(rawPool);
 
   document.getElementById('mode-title').innerHTML = `エンドレスモード`;
   document.getElementById('hint-area').innerText = `条件：${selectedFormat} / ${selectedType}`;
@@ -586,7 +605,7 @@ function loadNextQuestion() {
 
 function setupGame(cardData) {
   questionText = cardData.question;
-  correctAnswer = cardData.answer;
+  correctAnswer = cardData.answers; 
 
   if (currentMode === 'endless') {
       const selectedType = document.getElementById('typeSelect').value;
@@ -635,11 +654,12 @@ function openPanel(element) {
   document.getElementById('score').innerText = `${totalPanels - openedPanels} / ${totalPanels}`;
 }
 
-function toKatakana(str) {
-  return str.replace(/[\u3041-\u3096]/g, function(match) {
+function normalizeText(str) {
+  let converted = str.replace(/[\u3041-\u3096]/g, function(match) {
     var chr = match.charCodeAt(0) + 0x60;
     return String.fromCharCode(chr);
   });
+  return converted.replace(/[  ]+/g, "");
 }
 
 function checkAnswer() {
@@ -648,20 +668,23 @@ function checkAnswer() {
   const input = document.getElementById('answerInput').value.trim();
   if (!input) return;
 
-  const normalizedInput = toKatakana(input);
-  const normalizedAnswer = toKatakana(correctAnswer);
+  const normalizedInput = normalizeText(input);
+  
+  const isCorrect = correctAnswer.some(ans => normalizeText(ans) === normalizedInput);
+  
+  const displayAnswer = correctAnswer.join(" / ");
 
-  if (normalizedInput === normalizedAnswer) {
-    document.getElementById('message').innerText = `大正解！🎉\n残りの文字数: ${totalPanels - openedPanels} / ${totalPanels}\nカード名: ${correctAnswer}`;
+  if (isCorrect) {
+    document.getElementById('message').innerText = `大正解！🎉\n残りの文字数: ${totalPanels - openedPanels} / ${totalPanels}\nカード名: ${displayAnswer}`;
     document.getElementById('message').style.color = "#27ae60";
-    endGame(true);
+    endGame(true, displayAnswer);
   } else {
     tries--;
     document.getElementById('tries').innerText = tries;
     if (tries <= 0) {
-      document.getElementById('message').innerText = `ゲームオーバー...\n正解は「${correctAnswer}」でした！`;
+      document.getElementById('message').innerText = `ゲームオーバー...\n正解は「${displayAnswer}」でした！`;
       document.getElementById('message').style.color = "#c0392b";
-      endGame(false);
+      endGame(false, displayAnswer);
     } else {
       document.getElementById('message').innerText = "不正解！もう一度よく考えてみよう！";
       document.getElementById('message').style.color = "#e67e22";
@@ -669,7 +692,7 @@ function checkAnswer() {
   }
 }
 
-function endGame(isWin) {
+function endGame(isWin, displayAnswer) {
   gameOver = true;
   document.getElementById('submit-btn').disabled = true; 
   document.getElementById('answerInput').disabled = true; 
@@ -700,7 +723,7 @@ function endGame(isWin) {
       openedPanels: openedPanels,
       totalPanels: totalPanels,
       shareText: shareText,
-      correctAnswer: correctAnswer
+      correctAnswer: displayAnswer 
     };
     localStorage.setItem('pokecaMondoDailyRecord', JSON.stringify(dailyRecord));
     
