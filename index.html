@@ -416,7 +416,6 @@
 
 <script src="data.js"></script>
 <script>
-// data.js から設定を読み込む（もしdata.jsに設定がない場合は安全な初期値をセットする）
 const STANDARD_MARKS = (typeof standardMarks !== 'undefined') ? standardMarks : ["H", "I", "J"];
 const EXTRA_MARKS = (typeof extraMarks !== 'undefined') ? extraMarks : ["BW", "XY", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
 const EXTRA_BANNED_CARDS = (typeof extraBannedCards !== 'undefined') ? extraBannedCards : [];
@@ -644,14 +643,11 @@ function startFilteredMode() {
   }
 
   let rawPool = allCards.filter(card => {
-    // 種類チェック
     const isTypeMatch = selectedType === 'トレーナーズ（すべて）' ? true : card.type === selectedType;
     
-    // マークチェック
     const cardMarks = Array.isArray(card.format) ? card.format : [card.format];
     const isFormatMatch = cardMarks.some(mark => targetMarks.includes(mark));
 
-    // 禁止カードチェック（エクストラの場合のみ除外）
     let isBanned = false;
     if (selectedFormat === "エクストラ") {
       const ansArray = Array.isArray(card.answer) ? card.answer : [card.answer];
@@ -707,11 +703,8 @@ function setupGame(cardData) {
           formatDisplay = "カスタム(" + m.join(", ") + ")";
       }
 
-      if (selectedType === 'トレーナーズ（すべて）') {
-          document.getElementById('hint-area').innerText = `条件：${formatDisplay} / すべて (出題は${cardData.type})`;
-      } else {
-          document.getElementById('hint-area').innerText = `条件：${formatDisplay} / ${selectedType}`;
-      }
+      // 【修正】「トレーナーズ（すべて）」の時は、種類（グッズなど）を表示しないように統一
+      document.getElementById('hint-area').innerText = `条件：${formatDisplay} / ${selectedType}`;
   }
 
   tries = 3;
