@@ -66,6 +66,31 @@
     border: 1px solid #bdc3c7;
     margin: 0 10px;
   }
+
+  .mark-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  .mark-label {
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    user-select: none;
+    border: 1px solid #bdc3c7;
+    transition: background-color 0.2s;
+    font-size: 14px;
+    color: #34495e;
+  }
+  .mark-label:hover { background: #dcdde1; }
+  .mark-label input { margin-right: 6px; cursor: pointer; }
+
   .start-btn {
     background-color: #8e44ad;
     color: white;
@@ -300,12 +325,20 @@
   <h3>エンドレス出題フィルター設定</h3>
   <div class="select-group">
     <label>レギュレーション:
-      <select id="formatSelect">
+      <select id="formatSelect" onchange="toggleCustomMarks()">
         <option value="スタンダード">スタンダード</option>
-        <option value="エクストラ">エクストラ（未実装）</option>
+        <option value="エクストラ">エクストラ</option>
+        <option value="カスタム">カスタム（詳細設定）</option>
       </select>
     </label>
   </div>
+
+  <div id="custom-marks-area" style="display: none; margin: 15px 0; background: #fff; padding: 10px; border-radius: 8px;">
+    <div style="font-size: 14px; font-weight: bold; color: #2c3e50;">出題に含めるマークを選択：</div>
+    <div class="mark-group" id="custom-marks-container">
+      </div>
+  </div>
+
   <div class="select-group">
     <label>カードの種類:
       <select id="typeSelect">
@@ -383,23 +416,14 @@
 
 <script src="data.js"></script>
 <script>
-const excludedCardsList = [
-  "以下のカードは出現しません",
-  "古びたずがいの化石",
-  "古びたたての化石",
-  "古びたアゴの化石",
-  "古びたヒレの化石",
-  "古びたはねの化石",
-  "古びたねっこの化石",
-  "古びたふたの化石",
-  "コアメモリ",
-  "ワザマシン フローライト",
-  "半角全角スペース、平仮名片仮名は不問です",
-  "同一テキストのカードは全て正解になります"
-];
+// data.js から設定を読み込む（もしdata.jsに設定がない場合は安全な初期値をセットする）
+const STANDARD_MARKS = (typeof standardMarks !== 'undefined') ? standardMarks : ["H", "I", "J"];
+const EXTRA_MARKS = (typeof extraMarks !== 'undefined') ? extraMarks : ["BW", "XY", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+const EXTRA_BANNED_CARDS = (typeof extraBannedCards !== 'undefined') ? extraBannedCards : [];
+const EXCLUDED_LIST = (typeof excludedCardsList !== 'undefined') ? excludedCardsList : ["※留意事項のデータがありません"];
 
 const fallbackData = [
-  { question: "データがありません。data.jsを確認してください。", answer: "エラー", type: "グッズ", format: ["スタンダード", "エクストラ"] }
+  { question: "データがありません。data.jsを確認してください。", answer: "エラー", type: "グッズ", format: ["H"] }
 ];
 const allCards = (typeof pokemonCardsData !== 'undefined') ? pokemonCardsData : fallbackData;
 
@@ -444,15 +468,44 @@ function closeModalOnOutside(e, id) { if (e.target.id === id) closeModal(id); }
 function initExcludedList() {
   const container = document.getElementById('excluded-list-container');
   container.innerHTML = "";
-  if (excludedCardsList.length === 0) {
+  if (EXCLUDED_LIST.length === 0) {
     container.innerHTML = "<li>現在、留意事項はありません。</li>";
     return;
   }
-  excludedCardsList.forEach(card => {
+  EXCLUDED_LIST.forEach(card => {
     const li = document.createElement('li');
     li.innerText = card;
     container.appendChild(li);
   });
+}
+
+function initCustomMarks() {
+  const container = document.getElementById('custom-marks-container');
+  container.innerHTML = '';
+  EXTRA_MARKS.forEach(mark => {
+    const label = document.createElement('label');
+    label.className = 'mark-label';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = mark;
+    cb.className = 'custom-mark-checkbox';
+    if (STANDARD_MARKS.includes(mark)) {
+      cb.checked = true;
+    }
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(mark));
+    container.appendChild(label);
+  });
+}
+
+function toggleCustomMarks() {
+  const format = document.getElementById('formatSelect').value;
+  const area = document.getElementById('custom-marks-area');
+  if (format === 'カスタム') {
+    area.style.display = 'block';
+  } else {
+    area.style.display = 'none';
+  }
 }
 
 function switchTab(mode) {
@@ -483,10 +536,13 @@ function getDailyIndex(max) {
 }
 
 function startDailyMode() {
-  const rawPool = allCards.filter(card => card.format.includes("スタンダード"));
+  const rawPool = allCards.filter(card => {
+    const cardMarks = Array.isArray(card.format) ? card.format : [card.format];
+    return cardMarks.some(mark => STANDARD_MARKS.includes(mark));
+  });
 
   if (rawPool.length === 0) {
-    alert("「スタンダード」のカードデータが登録されていません！data.jsを確認してください。");
+    alert("「スタンダード」に該当するカードデータが登録されていません！data.jsを確認してください。");
     return;
   }
 
@@ -573,20 +629,53 @@ function startFilteredMode() {
   const selectedFormat = document.getElementById('formatSelect').value;
   const selectedType = document.getElementById('typeSelect').value;
 
+  let targetMarks = [];
+  if (selectedFormat === "スタンダード") {
+    targetMarks = STANDARD_MARKS;
+  } else if (selectedFormat === "エクストラ") {
+    targetMarks = EXTRA_MARKS;
+  } else if (selectedFormat === "カスタム") {
+    const checkboxes = document.querySelectorAll('.custom-mark-checkbox:checked');
+    checkboxes.forEach(cb => targetMarks.push(cb.value));
+    if (targetMarks.length === 0) {
+      alert("カスタム設定が選ばれていますが、マークが1つも選択されていません！");
+      return;
+    }
+  }
+
   let rawPool = allCards.filter(card => {
+    // 種類チェック
     const isTypeMatch = selectedType === 'トレーナーズ（すべて）' ? true : card.type === selectedType;
-    return isTypeMatch && card.format.includes(selectedFormat);
+    
+    // マークチェック
+    const cardMarks = Array.isArray(card.format) ? card.format : [card.format];
+    const isFormatMatch = cardMarks.some(mark => targetMarks.includes(mark));
+
+    // 禁止カードチェック（エクストラの場合のみ除外）
+    let isBanned = false;
+    if (selectedFormat === "エクストラ") {
+      const ansArray = Array.isArray(card.answer) ? card.answer : [card.answer];
+      isBanned = ansArray.some(ans => EXTRA_BANNED_CARDS.includes(ans));
+    }
+
+    return isTypeMatch && isFormatMatch && !isBanned;
   });
 
   if (rawPool.length === 0) {
-    alert(`「${selectedFormat}」の「${selectedType}」のデータが登録されていません！`);
+    alert(`指定された条件に該当するデータが登録されていません！`);
     return;
   }
 
   currentPool = getGroupedPool(rawPool);
 
   document.getElementById('mode-title').innerHTML = `エンドレスモード`;
-  document.getElementById('hint-area').innerText = `条件：${selectedFormat} / ${selectedType}`;
+  
+  let formatDisplay = selectedFormat;
+  if (selectedFormat === "カスタム") {
+    formatDisplay = "カスタム(" + targetMarks.join(", ") + ")";
+  }
+  document.getElementById('hint-area').innerText = `条件：${formatDisplay} / ${selectedType}`;
+  
   document.getElementById('game-area').style.display = 'block';
   
   loadNextQuestion();
@@ -609,8 +698,19 @@ function setupGame(cardData) {
 
   if (currentMode === 'endless') {
       const selectedType = document.getElementById('typeSelect').value;
+      const selectedFormat = document.getElementById('formatSelect').value;
+      
+      let formatDisplay = selectedFormat;
+      if (selectedFormat === 'カスタム') {
+          const checkboxes = document.querySelectorAll('.custom-mark-checkbox:checked');
+          const m = Array.from(checkboxes).map(cb => cb.value);
+          formatDisplay = "カスタム(" + m.join(", ") + ")";
+      }
+
       if (selectedType === 'トレーナーズ（すべて）') {
-          document.getElementById('hint-area').innerText = `条件：${document.getElementById('formatSelect').value} / すべて`;
+          document.getElementById('hint-area').innerText = `条件：${formatDisplay} / すべて (出題は${cardData.type})`;
+      } else {
+          document.getElementById('hint-area').innerText = `条件：${formatDisplay} / ${selectedType}`;
       }
   }
 
@@ -763,6 +863,7 @@ function endGame(isWin, displayAnswer) {
 
 window.onload = () => {
   initExcludedList(); 
+  initCustomMarks(); 
   switchTab('daily');
 };
 </script>
