@@ -32,16 +32,22 @@
     margin: 0 auto 20px auto;
   }
   .tab {
-    padding: 12px 24px;
+    padding: 10px 16px;
     cursor: pointer;
     background-color: #dcdde1;
     color: #7f8c8d;
     border-radius: 8px 8px 0 0;
-    margin: 0 5px;
+    margin: 0 4px;
     font-weight: bold;
     transition: all 0.2s;
     border: 1px solid #bdc3c7;
     border-bottom: none;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.3;
   }
   .tab.active {
     background-color: #fff;
@@ -302,7 +308,7 @@
     }
     .title-container { gap: 5px; }
     .circle-btn { width: 28px; height: 28px; font-size: 16px; }
-    .tab { padding: 10px 12px; font-size: 14px; margin: 0 2px; }
+    .tab { padding: 8px 6px; font-size: 12px; margin: 0 2px; }
     .score-board { font-size: 16px; padding: 10px; }
     input[type="text"] { width: 90%; }
     .modal-content { padding: 20px; font-size: 14px; }
@@ -317,8 +323,9 @@
 </div>
 
 <div class="tabs">
-  <div id="tab-daily" class="tab active" onclick="switchTab('daily')">本日の１問</div>
-  <div id="tab-endless" class="tab" onclick="switchTab('endless')">エンドレスモード</div>
+  <div id="tab-daily-standard" class="tab active" onclick="switchTab('daily-standard')">本日の１問<br>（スタン）</div>
+  <div id="tab-daily-extra" class="tab" onclick="switchTab('daily-extra')">本日の１問<br>（エクストラ）</div>
+  <div id="tab-endless" class="tab" onclick="switchTab('endless')">エンドレス<br>モード</div>
 </div>
 
 <div id="endless-controls" class="controls-container" style="display: none;">
@@ -426,7 +433,8 @@ const fallbackData = [
 ];
 const allCards = (typeof pokemonCardsData !== 'undefined') ? pokemonCardsData : fallbackData;
 
-let currentMode = 'daily';
+let currentMode = 'daily-standard';
+let currentDailyFormat = 'スタンダード'; // スタンダード か エクストラ
 let currentPool = []; 
 let questionText = "";
 let correctAnswer = []; 
@@ -507,18 +515,27 @@ function toggleCustomMarks() {
   }
 }
 
+// 【変更点】3種類のタブの切り替え処理
 function switchTab(mode) {
   currentMode = mode;
-  document.getElementById('tab-daily').classList.remove('active');
+  document.getElementById('tab-daily-standard').classList.remove('active');
+  document.getElementById('tab-daily-extra').classList.remove('active');
   document.getElementById('tab-endless').classList.remove('active');
   document.getElementById('share-btn').style.display = 'none'; 
   document.getElementById('next-btn').style.display = 'none'; 
   document.getElementById('retry-btn').style.display = 'none'; 
   
-  if (mode === 'daily') {
-    document.getElementById('tab-daily').classList.add('active');
+  if (mode === 'daily-standard') {
+    document.getElementById('tab-daily-standard').classList.add('active');
     document.getElementById('endless-controls').style.display = 'none';
     document.getElementById('game-area').style.display = 'block';
+    currentDailyFormat = 'スタンダード';
+    startDailyMode();
+  } else if (mode === 'daily-extra') {
+    document.getElementById('tab-daily-extra').classList.add('active');
+    document.getElementById('endless-controls').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+    currentDailyFormat = 'エクストラ';
     startDailyMode();
   } else {
     document.getElementById('tab-endless').classList.add('active');
@@ -527,35 +544,49 @@ function switchTab(mode) {
   }
 }
 
-function getDailyIndex(max) {
+// シード値にフォーマットを含めることで、スタンとエクストラで違う問題が出やすくなります
+function getDailyIndex(max, format) {
   const today = new Date();
-  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  const formatOffset = format === "エクストラ" ? 1234 : 0;
+  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate() + formatOffset;
   const x = Math.sin(seed) * 10000;
   return Math.floor((x - Math.floor(x)) * max);
 }
 
 function startDailyMode() {
+  const targetMarks = currentDailyFormat === "スタンダード" ? STANDARD_MARKS : EXTRA_MARKS;
+
   const rawPool = allCards.filter(card => {
     const cardMarks = Array.isArray(card.format) ? card.format : [card.format];
-    return cardMarks.some(mark => STANDARD_MARKS.includes(mark));
+    const isFormatMatch = cardMarks.some(mark => targetMarks.includes(mark));
+
+    let isBanned = false;
+    if (currentDailyFormat === "エクストラ") {
+      const ansArray = Array.isArray(card.answer) ? card.answer : [card.answer];
+      isBanned = ansArray.some(ans => EXTRA_BANNED_CARDS.includes(ans));
+    }
+    return isFormatMatch && !isBanned;
   });
 
   if (rawPool.length === 0) {
-    alert("「スタンダード」に該当するカードデータが登録されていません！data.jsを確認してください。");
+    alert(`「${currentDailyFormat}」に該当するカードデータが登録されていません！data.jsを確認してください。`);
     return;
   }
 
   const dailyPool = getGroupedPool(rawPool);
 
-  const dailyCard = dailyPool[getDailyIndex(dailyPool.length)];
-  document.getElementById('mode-title').innerHTML = `本日の１問<br><span style="font-size: 0.6em; color: #7f8c8d; font-weight: normal;">（出題範囲：スタンダード）</span>`;
+  const dailyCard = dailyPool[getDailyIndex(dailyPool.length, currentDailyFormat)];
+  document.getElementById('mode-title').innerHTML = `本日の１問<br><span style="font-size: 0.6em; color: #7f8c8d; font-weight: normal;">（出題範囲：${currentDailyFormat}）</span>`;
   document.getElementById('hint-area').innerText = `カードの種類：${dailyCard.type}`;
   
   document.getElementById('next-btn').style.display = 'none';
   document.getElementById('retry-btn').style.display = 'none';
   document.getElementById('share-btn').style.display = 'none';
   
-  const savedDataStr = localStorage.getItem('pokecaMondoDailyRecord');
+  // スタンダードとエクストラで保存先キーを分ける
+  const storageKey = 'pokecaMondoDailyRecord_' + (currentDailyFormat === 'スタンダード' ? 'std' : 'ext');
+  const savedDataStr = localStorage.getItem(storageKey);
+  
   if (savedDataStr) {
     const savedData = JSON.parse(savedDataStr);
     if (savedData.date === getTodayString()) {
@@ -644,7 +675,6 @@ function startFilteredMode() {
 
   let rawPool = allCards.filter(card => {
     const isTypeMatch = selectedType === 'トレーナーズ（すべて）' ? true : card.type === selectedType;
-    
     const cardMarks = Array.isArray(card.format) ? card.format : [card.format];
     const isFormatMatch = cardMarks.some(mark => targetMarks.includes(mark));
 
@@ -703,8 +733,11 @@ function setupGame(cardData) {
           formatDisplay = "カスタム(" + m.join(", ") + ")";
       }
 
-      // 【修正】「トレーナーズ（すべて）」の時は、種類（グッズなど）を表示しないように統一
-      document.getElementById('hint-area').innerText = `条件：${formatDisplay} / ${selectedType}`;
+      if (selectedType === 'トレーナーズ（すべて）') {
+          document.getElementById('hint-area').innerText = `条件：${formatDisplay} / すべて (出題は${cardData.type})`;
+      } else {
+          document.getElementById('hint-area').innerText = `条件：${formatDisplay} / ${selectedType}`;
+      }
   }
 
   tries = 3;
@@ -790,25 +823,22 @@ function endGame(isWin, displayAnswer) {
   document.getElementById('submit-btn').disabled = true; 
   document.getElementById('answerInput').disabled = true; 
   
-  if (currentMode === 'daily') {
-    const panels = document.querySelectorAll('.panel');
-    let gridResult = "";
-    panels.forEach(p => {
-      gridResult += p.classList.contains('open') ? "💥" : "🔲";
-    });
-    
+  if (currentMode.startsWith('daily')) {
     let resultMessage = "";
     const remainingPanels = totalPanels - openedPanels;
+    
+    // 【変更点】Xシェア用の文面を新しく設定
     if (isWin) {
       const attemptCount = 4 - tries; 
-      resultMessage = `${remainingPanels}/${totalPanels}、${attemptCount}回目の解答で正解しました！`;
+      resultMessage = `本日の１問${currentDailyFormat}、${remainingPanels}/${totalPanels}、${attemptCount}回目の解答で正解しました！`;
     } else {
-      resultMessage = `${remainingPanels}/${totalPanels}、正解を導き出せませんでした...`;
+      resultMessage = `本日の１問${currentDailyFormat}、${remainingPanels}/${totalPanels}、正解を導き出せませんでした...`;
     }
     
     const siteUrl = window.location.href;
-    const shareText = `${resultMessage}\n${gridResult}\n#ポケカmondo\n${siteUrl}`;
+    const shareText = `${resultMessage}\n#ポケカmondo\n${siteUrl}`;
     
+    const storageKey = 'pokecaMondoDailyRecord_' + (currentDailyFormat === 'スタンダード' ? 'std' : 'ext');
     const dailyRecord = {
       date: getTodayString(),
       isWin: isWin,
@@ -818,7 +848,7 @@ function endGame(isWin, displayAnswer) {
       shareText: shareText,
       correctAnswer: displayAnswer 
     };
-    localStorage.setItem('pokecaMondoDailyRecord', JSON.stringify(dailyRecord));
+    localStorage.setItem(storageKey, JSON.stringify(dailyRecord));
     
     const shareBtn = document.getElementById('share-btn');
     shareBtn.onclick = function(e) {
@@ -857,7 +887,7 @@ function endGame(isWin, displayAnswer) {
 window.onload = () => {
   initExcludedList(); 
   initCustomMarks(); 
-  switchTab('daily');
+  switchTab('daily-standard'); // 起動時は「本日の１問（スタン）」から
 };
 </script>
 </body>
