@@ -160,6 +160,9 @@
     height: 30px;
     font-size: 18px;
   }
+  .panel.force-open {
+    background-color: #d4e6f1 !important; 
+  }
   
   .input-area { margin-top: 20px; }
   input[type="text"] {
@@ -434,7 +437,7 @@ const fallbackData = [
 const allCards = (typeof pokemonCardsData !== 'undefined') ? pokemonCardsData : fallbackData;
 
 let currentMode = 'daily-standard';
-let currentDailyFormat = 'スタンダード'; // スタンダード か エクストラ
+let currentDailyFormat = 'スタンダード'; 
 let currentPool = []; 
 let questionText = "";
 let correctAnswer = []; 
@@ -515,7 +518,6 @@ function toggleCustomMarks() {
   }
 }
 
-// 【変更点】3種類のタブの切り替え処理
 function switchTab(mode) {
   currentMode = mode;
   document.getElementById('tab-daily-standard').classList.remove('active');
@@ -544,7 +546,6 @@ function switchTab(mode) {
   }
 }
 
-// シード値にフォーマットを含めることで、スタンとエクストラで違う問題が出やすくなります
 function getDailyIndex(max, format) {
   const today = new Date();
   const formatOffset = format === "エクストラ" ? 1234 : 0;
@@ -583,7 +584,6 @@ function startDailyMode() {
   document.getElementById('retry-btn').style.display = 'none';
   document.getElementById('share-btn').style.display = 'none';
   
-  // スタンダードとエクストラで保存先キーを分ける
   const storageKey = 'pokecaMondoDailyRecord_' + (currentDailyFormat === 'スタンダード' ? 'std' : 'ext');
   const savedDataStr = localStorage.getItem(storageKey);
   
@@ -622,7 +622,13 @@ function restoreDailyResult(record, cardData) {
   for (let i = 0; i < questionText.length; i++) {
     const char = questionText[i];
     const div = document.createElement('div');
-    div.className = 'panel open'; 
+    
+    if (i < openedPanels) {
+      div.className = 'panel open'; 
+    } else {
+      div.className = 'panel force-open open'; 
+    }
+    
     div.innerText = char;
     panelsContainer.appendChild(div);
   }
@@ -733,11 +739,8 @@ function setupGame(cardData) {
           formatDisplay = "カスタム(" + m.join(", ") + ")";
       }
 
-      if (selectedType === 'トレーナーズ（すべて）') {
-          document.getElementById('hint-area').innerText = `条件：${formatDisplay} / すべて (出題は${cardData.type})`;
-      } else {
-          document.getElementById('hint-area').innerText = `条件：${formatDisplay} / ${selectedType}`;
-      }
+      // 【修正】「トレーナーズ（すべて）」の時は、種類（出題は○○等のヒント）を一切表示しない
+      document.getElementById('hint-area').innerText = `条件：${formatDisplay} / ${selectedType}`;
   }
 
   tries = 3;
@@ -823,16 +826,23 @@ function endGame(isWin, displayAnswer) {
   document.getElementById('submit-btn').disabled = true; 
   document.getElementById('answerInput').disabled = true; 
   
+  const panels = document.querySelectorAll('.panel');
+  panels.forEach(p => {
+    if (!p.classList.contains('open')) {
+      p.classList.add('force-open');
+    }
+    p.classList.add('open');
+    p.innerText = p.dataset.char;
+  });
+
   if (currentMode.startsWith('daily')) {
     let resultMessage = "";
-    const remainingPanels = totalPanels - openedPanels;
     
-    // 【変更点】Xシェア用の文面を新しく設定
     if (isWin) {
       const attemptCount = 4 - tries; 
-      resultMessage = `本日の１問${currentDailyFormat}、${remainingPanels}/${totalPanels}、${attemptCount}回目の解答で正解しました！`;
+      resultMessage = `本日の１問${currentDailyFormat}、${openedPanels}/${totalPanels}文字開け、${attemptCount}回目の解答で正解しました！`;
     } else {
-      resultMessage = `本日の１問${currentDailyFormat}、${remainingPanels}/${totalPanels}、正解を導き出せませんでした...`;
+      resultMessage = `本日の１問${currentDailyFormat}、${openedPanels}/${totalPanels}、正解を導き出せませんでした...`;
     }
     
     const siteUrl = window.location.href;
@@ -868,12 +878,6 @@ function endGame(isWin, displayAnswer) {
     shareBtn.style.display = 'inline-block';
   }
 
-  const panels = document.querySelectorAll('.panel');
-  panels.forEach(p => {
-    p.classList.add('open');
-    p.innerText = p.dataset.char;
-  });
-
   if (currentMode === 'endless') {
     if (isWin) {
       document.getElementById('next-btn').style.display = 'inline-block';
@@ -887,7 +891,7 @@ function endGame(isWin, displayAnswer) {
 window.onload = () => {
   initExcludedList(); 
   initCustomMarks(); 
-  switchTab('daily-standard'); // 起動時は「本日の１問（スタン）」から
+  switchTab('daily-standard'); 
 };
 </script>
 </body>
